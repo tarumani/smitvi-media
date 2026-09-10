@@ -10,6 +10,8 @@ import { orgJsonLd } from "@/lib/seo";
 import { site } from "@/lib/site";
 import "./globals.css";
 
+export const dynamic = "force-dynamic";
+
 const outfit = Outfit({
   variable: "--font-outfit",
   subsets: ["latin"],
