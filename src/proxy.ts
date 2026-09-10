@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 const protectedPaths = ["/profile", "/saved", "/history", "/creator/dashboard", "/creator/upload", "/admin"];
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const res = NextResponse.next();
   if (!req.cookies.get("smitvi_anon")?.value) {
     res.cookies.set("smitvi_anon", crypto.randomUUID(), {
