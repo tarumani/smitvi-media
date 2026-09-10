@@ -1,0 +1,394 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Production: switch provider to "postgresql" and point DATABASE_URL at Postgres.
+// Schema types are kept PostgreSQL-compatible (no SQLite-only features).
+
+enum Role {
+  USER
+  CREATOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum CreatorStatus {
+  PENDING
+  APPROVED
+  SUSPENDED
+}
+
+enum VideoType {
+  VIDEO
+  SHORT
+}
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+  UNLISTED
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  UNPUBLISHED
+  BLOCKED
+}
+
+enum CommentStatus {
+  VISIBLE
+  HIDDEN
+  REMOVED
+}
+
+enum ReportTarget {
+  VIDEO
+  COMMENT
+  USER
+  CREATOR
+}
+
+enum ReportReason {
+  SPAM
+  COPYRIGHT
+  HATE
+  SEXUAL
+  VIOLENCE
+  MISINFORMATION
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWED
+  ACTIONED
+  DISMISSED
+}
+
+enum AnalyticsEventType {
+  IMPRESSION
+  STARTED
+  PROGRESS
+  COMPLETED
+  LIKE
+  COMMENT
+  SHARE
+  SAVE
+  FOLLOW
+  SEARCH
+  CATEGORY_CLICK
+  CREATOR_CLICK
+}
+
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  username     String     @unique
+  email        String     @unique
+  passwordHash String
+  avatar       String?
+  bio          String?
+  role         Role       @default(USER)
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  creator          Creator?
+  likes            Like[]
+  commentLikes     CommentLike[]
+  comments         Comment[]
+  follows          Follow[]
+  savedVideos      SavedVideo[]
+  watchHistory     WatchHistory[]
+  videoViews       VideoView[]
+  reports          Report[]       @relation("Reporter")
+  reportsAgainst   Report[]       @relation("ReportedUser")
+  passwordResets   PasswordReset[]
+  analyticsEvents  AnalyticsEvent[]
+
+  @@index([username])
+  @@index([email])
+  @@index([createdAt])
+}
+
+model Creator {
+  id             String         @id @default(cuid())
+  userId         String         @unique
+  displayName    String
+  username       String         @unique
+  description    String?
+  coverImage     String?
+  followersCount Int            @default(0)
+  totalViews     Int            @default(0)
+  status         CreatorStatus  @default(APPROVED)
+  featured       Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videos  Video[]
+  follows Follow[]
+  reports Report[]
+
+  @@index([username])
+  @@index([followersCount])
+  @@index([status])
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  image       String?
+  status      String   @default("active")
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  videos Video[]
+
+  @@index([slug])
+  @@index([sortOrder])
+}
+
+model Tag {
+  id        String     @id @default(cuid())
+  name      String
+  slug      String     @unique
+  videoTags VideoTag[]
+
+  @@index([slug])
+  @@index([name])
+}
+
+model Video {
+  id            String        @id @default(cuid())
+  creatorId     String
+  title         String
+  slug          String        @unique
+  description   String        @default("")
+  videoUrl      String        @default("")
+  storageKey    String?
+  thumbnailUrl  String        @default("")
+  thumbKey      String?
+  duration      Int           @default(0)
+  categoryId    String?
+  videoType     VideoType     @default(VIDEO)
+  visibility    Visibility    @default(PUBLIC)
+  status        ContentStatus @default(DRAFT)
+  featured      Boolean       @default(false)
+  viewsCount    Int           @default(0)
+  likesCount    Int           @default(0)
+  commentsCount Int           @default(0)
+  sharesCount   Int           @default(0)
+  watchTimeSec  Int           @default(0)
+  trendingScore Float         @default(0)
+  publishedAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  creator      Creator         @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  category     Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags         VideoTag[]
+  likes        Like[]
+  comments     Comment[]
+  saved        SavedVideo[]
+  history      WatchHistory[]
+  views        VideoView[]
+  reports      Report[]
+  analytics    AnalyticsEvent[]
+
+  @@index([slug])
+  @@index([categoryId])
+  @@index([creatorId])
+  @@index([createdAt])
+  @@index([publishedAt])
+  @@index([viewsCount])
+  @@index([likesCount])
+  @@index([trendingScore])
+  @@index([videoType, status, visibility])
+  @@index([status, visibility, featured])
+}
+
+model VideoTag {
+  videoId String
+  tagId   String
+  video   Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  tag     Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([videoId, tagId])
+  @@index([tagId])
+  @@index([videoId])
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  videoId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, videoId])
+  @@index([videoId])
+}
+
+model Comment {
+  id         String        @id @default(cuid())
+  userId     String
+  videoId    String
+  parentId   String?
+  content    String
+  likesCount Int           @default(0)
+  status     CommentStatus @default(VISIBLE)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video    Video         @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  parent   Comment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[]     @relation("CommentReplies")
+  likes    CommentLike[]
+  reports  Report[]
+
+  @@index([videoId, createdAt])
+  @@index([parentId])
+  @@index([userId])
+}
+
+model CommentLike {
+  id        String   @id @default(cuid())
+  userId    String
+  commentId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+}
+
+model Follow {
+  followerId String
+  creatorId  String
+  createdAt  DateTime @default(now())
+
+  follower User    @relation(fields: [followerId], references: [id], onDelete: Cascade)
+  creator  Creator @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, creatorId])
+  @@index([creatorId])
+}
+
+model SavedVideo {
+  userId    String
+  videoId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@id([userId, videoId])
+  @@index([userId, createdAt])
+}
+
+model WatchHistory {
+  id            String   @id @default(cuid())
+  userId        String
+  videoId       String
+  watchDuration Int      @default(0)
+  completed     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, videoId])
+  @@index([userId, updatedAt])
+}
+
+model VideoView {
+  id            String   @id @default(cuid())
+  videoId       String
+  userId        String?
+  sessionId     String
+  watchDuration Int      @default(0)
+  completed     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([videoId, createdAt])
+  @@index([sessionId, videoId, createdAt])
+  @@index([userId])
+}
+
+model Report {
+  id         String         @id @default(cuid())
+  reporterId String
+  targetType ReportTarget
+  reason     ReportReason
+  details    String?
+  status     ReportStatus   @default(OPEN)
+  videoId    String?
+  commentId  String?
+  userId     String?
+  creatorId  String?
+  adminNote  String?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  reporter User     @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  video    Video?   @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  comment  Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user     User?    @relation("ReportedUser", fields: [userId], references: [id], onDelete: Cascade)
+  creator  Creator? @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([targetType])
+}
+
+model PasswordReset {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AnalyticsEvent {
+  id        String              @id @default(cuid())
+  type      AnalyticsEventType
+  videoId   String?
+  userId    String?
+  sessionId String
+  metadata  String?
+  createdAt DateTime            @default(now())
+
+  video Video? @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([type, createdAt])
+  @@index([videoId])
+  @@index([sessionId])
+}

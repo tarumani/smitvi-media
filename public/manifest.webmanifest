@@ -1,0 +1,10 @@
+{
+  "name": "Smitvi Media",
+  "short_name": "Smitvi",
+  "description": "Ideas Worth Watching.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4efe6",
+  "theme_color": "#161410",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
