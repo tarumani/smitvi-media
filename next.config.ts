@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
+import path from "node:path";
+
+const projectRoot = path.join(process.cwd());
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: projectRoot,
+  turbopack: {
+    root: projectRoot,
+  },
   typescript: {
     ignoreBuildErrors: true,
   },

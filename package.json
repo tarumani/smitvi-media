@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build --webpack",
-    "start": "node server.js",
+    "start": "node scripts/start.cjs",
     "lint": "eslint",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
@@ -30,6 +30,7 @@
     "react-dom": "19.2.8",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "tsx": "^4.23.13",
     "zod": "^4.6.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
@@ -38,7 +39,6 @@
   },
   "devDependencies": {
     "eslint": "^9",
-    "eslint-config-next": "16.3.4",
-    "tsx": "^4.23.13"
+    "eslint-config-next": "16.3.4"
   }
 }
